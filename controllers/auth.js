@@ -1,7 +1,12 @@
 const bcrypt = require("bcrypt");
 const User = require("../models/user");
+const UserOTPVerification = require("../models/UserOTPVerification");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+
 require("dotenv").config();
+
+
 //signup route handler
 exports.signup = async(req,res) => {
     try{
@@ -227,11 +232,121 @@ exports.changepassword= async(req,res)=>{
     }
 }
 
+//send otp verification email
+const sendOTPVerificationEmail = async () => {
+    try{
+        const otp = '${Math.floor(1000 + Math.random()*9000)}';
 
+        //mail options
+        const mailOptions = {
+            from:process.env.AUTH_EMAIL,
+            to:email,
+            subject:"Verify Your Email",
+            html:'<p> Enter <b>${otp}</b> in the app to verify your email address and complete the verification</p><p>This code <b>expires in 1 hour </b></p>'
+                   
+        };
+        //hash the otp 
+        const saltRounds = 10;
 
-       
+        const hashedOTP = await bcrypt.hash(otp,saltRounds);
+        new UserOTPVerification({
+            userId:_id,
+            otp:hashedOTP,
+            createdAT:Date.now(),
+            expiresAt:Date.now() + 3600000,
+        });
+        //save otp record
+        await newOTPVerification.save();
+        await transporter.sendMail(mailOptions);
+        res.json({
+            status:"PENDING",
+            message:"Verification otp mail sent",
+            data:{
+                userId:_id,
+                email,
+            },
+
+        });
+    }
+    catch(error){res.json({
+        status:"FAILED",
+        message:error.message,
+    });
+
+    }
+};
+
+       //verify otp email
+       exports.verifyotp = async(req,res) => {
+        try{
+            let{userId,otp} = req.body;
+            if(!userId || !otp) {
+                throw error ("empty otp details are not allowed");
+            }else{
+               const UserOTPVerificationRecords = await UserOTPVerification.find({
+                userId,
+               });
+               if(UserOTPVerificationRecords.length <= 0) {
+                //no record found
+                throw new error (
+                    "Account record dosent exist or has been verified already .please signup or login."
+                );
+               } else {
+                //user otp record exists
+                const {expiresAt} = UserOTPVerificationRecords[0];
+                const hashedOTP = UserOTPVerificationRecords[0].otp;
+
+                if(expiresAt < Date.now()) {
+                    //user otp record has expired
+                    await UserOTPVerification.deleteMany({userId});
+                    throw new error ("code has expired.please request again.");
+                } else {
+                    bcrypt.compare(otp,hashedOTP);
+
+                    if(!validOTP) {
+                        //supplied otp is wrong
+                        throw new error("invalid code passed.check your inbox.");
+                    } else {
+                        //success
+                       await User.updateOne({_id:userId},{verified:true});
+                       await UserOTPVerification.deleteMany({userId});
+                       res.json({
+                        status:"VERIFIED",
+                        message:"User email verified successfully",
+                       });
+                    }
+                }
+
+               }
+            }
+        } catch (error) {
+            res.json({
+                status:"FAILED",
+                message:"error.message",
+            });
+        }
+       };
            
-   
+   //resend verification
+   exports.resendOTPVerificationCode = async(req,res) => {
+    try{
+        let{userId,email} = req.body;
+
+        if(!userId || email) {
+            throw error ("empty user details are not allowed");
+        } else {
+            //delete existing records and resend
+            await UserOTPVerification.deleteMany({userId});
+            sendOTPVerificationEmail({_id:userId,email},res);
+        }
+    } catch (error) {
+        res.json({
+            status:"FAILED",
+            message:"error.message"
+        });
+
+    }
+   }
    
          
        
