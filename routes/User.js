@@ -2,14 +2,24 @@ const express = require("express");
 
 const router = express.Router();
 
-const{login,signup,sendpasswordlink,forgotpassword,changepassword,sendOTPVerificationEmail,verifyotp,resendOTPVerificationCode} = require("../controllers/auth");
+const{login,signup,sendotp,changePassword} = require("../controllers/auth");
+
+const {resetPasswordToken,resetPassword,} = require("../controllers/ResetPassword");
+  
 
 router.post("/login",login);
+
 router.post("/signup",signup);
-router.post("/sendpasswordlink",sendpasswordlink);
-router.get("/forgotpassword/:id/:token",forgotpassword);
-router.post("/:id/:token", changepassword);
-//router.post("/sendOTPVerificationEmail",sendOTPVerificationEmail);
-router.post("/verifyotp",verifyotp);
-router.post("/resendOTPVerificationCode",resendOTPVerificationCode);
+
+router.post("/sendotp", sendotp);
+
+
+//for generating a reset password token
+router.post("/reset-password-token", resetPasswordToken);
+
+//for resetting user's password after verification
+router.post("/reset-password", resetPassword);
+
+router.post("/changepassword",changePassword);
+
 module.exports = router;
