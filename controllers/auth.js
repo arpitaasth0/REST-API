@@ -83,8 +83,7 @@ exports.signup = async(req,res) => {
             const payload = {
                 email:user.email,
                 id:user._id,
-                role:user.role,
-            };
+               };
 
             if(await bcrypt.compare(password,user.password)){
              let token = jwt.sign(payload,
@@ -168,73 +167,4 @@ exports.signup = async(req,res) => {
     };
     
     
-    exports.changePassword = async (req, res) => {
-	try {
-		const userDetails = await User.findById(req.user.id);
-
-		const { oldPassword, newPassword, confirmNewPassword } = req.body;
-
-		const isPasswordMatch = await bcrypt.compare(
-			oldPassword,
-			userDetails.password
-		);
-		if(oldPassword === newPassword){
-			return res.status(400).json({
-				success: false,
-				message: "New Password cannot be same as Old Password",
-			});
-		}
-		
-		if (!isPasswordMatch) {
-			return res
-				.status(401)
-				.json({ success: false, message: "The password is incorrect" });
-		}
-
-		if (newPassword !== confirmNewPassword) {
-			return res.status(400).json({
-				success: false,
-				message: "The password and confirm password does not match",
-			});
-		}
-
-		// Update password
-		const encryptedPassword = await bcrypt.hash(newPassword, 10);
-		const updatedUserDetails = await User.findByIdAndUpdate(
-			req.user.id,
-			{ password: encryptedPassword },
-			{ new: true }
-		);
-
-		// Send notification email
-		try {
-			const emailResponse = await mailSender(
-				updatedUserDetails.email,
-				"Password Updated",
-				passwordUpdated(
-					updatedUserDetails.email,
-					`Password updated successfully for ${updatedUserDetails.name}`
-				)
-			);
-			console.log("Email sent successfully:", emailResponse.response);
-		} catch (error) {
-			console.error("Error occurred while sending email:", error);
-			return res.status(500).json({
-				success: false,
-				message: "Error occurred while sending email",
-				error: error.message,
-			});
-		}
-
-		return res
-			.status(200)
-			.json({ success: true, message: "Password updated successfully" });
-	} catch (error) {
-		console.error("Error occurred while updating password:", error);
-		return res.status(500).json({
-			success: false,
-			message: "Error occurred while updating password",
-			error: error.message,
-		});
-	}
-};
+   
